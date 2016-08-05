@@ -191,7 +191,37 @@ We can also use inherit to inherit attributes from another set:
 There is no wildcard `inherit`. If you do not specify any attributes to inherit, then you don't get anything:
 
     nix-repl> let integers = { a = 1; b = 2; c = 3; } ; in { inherit (integers); }
-    { }
+    { } 
+
+import
+======
+
+The import statement imports an expression from another file. Let's create a file named `greeting.nix` which contains the line:
+
+    object: "hello, ${object}!"
+
+Now in `nix-repl` we can do:
+
+    nix-repl> :t import ./greeting.nix
+    a function
+
+    nix-repl> import ./greeting.nix "world"
+    "hello, world!"
+
+We see that `import`, returns the function it imported from `greeting.nix`. We can apply that to `"world"` to produce the string `"hello, world!"`.
+
+There are thre important things to keep in mind here:
+
+  1. `import` can only import a single expression from a `.nix` file -- so each `.nix` file should only contain a single expression
+
+  2. The `expression` in the `.nix` file can be any valid `.nix` type -- a function, a string, a path, a set, etc.
+
+  3. `import` simply returns an expression, it does not add any new symbols to the environment.
+
+Unlike Haskell, `import` is not restricted to only being called at the top-level. So we could use it in a `let` expression:
+
+    nix-repl> let greet = import ./greeting.nix ; in greet "world"
+    "hello, world!"
 
 
 with-expressions
@@ -219,6 +249,68 @@ the `e1` must be an expression that evaluates to a set. `with` turns all the `at
 
 In this case, `foo.nix` must contain an expression that evaluates to a set.
 
+`import`, `with` and `<nixpkgs>`
+================================
+
+We now have enough background to understand what is going on in this expression:
+
+    nix-repl> with import <nixpkgs> {}; stdenv.name
+    "stdenv-darwin"
+
+Let's review! `<nixpkgs>` refers to a path. It is found by looking for name=path in the $NIX_PATH environment variable. So if I have this NIX_PATH:
+
+    $ echo $NIX_PATH
+    /Users/stepcut/nixpkgs:nixpkgs=/Users/stepcut/nixpkgs
+
+Then we can evaluated `<nixpkg>` in nix-repl and we get:
+
+    nix-repl> <nixpkgs>
+    /Users/stepcut/nixpkgs
+
+If we run, `import <nixpkgs>` we get:
+
+    nix-repl> import <nixpkgs>
+    «lambda»
+
+Telling us that the expression imported from `<nixpkgs>` is a function. In this case, `<nixpkgs>` expects a set of attributes. Unfortunately, the only way to know that is to look at the source code in `<nixpkgs>`, or to read the documentation. If we were to run, `import <nixpkgs> {}` in `nix-repl` it would begin spewing out a giant attribute set. Instead, let's just use the dot operator to select a value from the attribute set:
+
+    nix-repl> (import <nixpkgs> {}).stdenv.name
+    "stdenv-darwin"
+
+We have `.stdenv.name` because we have nested attribute sets.
+
+Finally, we have:
+
+    nix-repl> with import <nixpkgs> {}; stdenv.name
+    "stdenv-darwin"
+
+The `with` statement automatically binds `stdenv` and any other top-level attributes, but only in the expression after the `;`.
+
+
+if ... then ... else ...
+========================
+
+    if <boolean expression> then <expr> else <expr>
+
+`if...then...else...` is the only built-in flow control statement aside from `assert` and `throw`, which both terminate evaluation. There is *no* for, while, return, continue, catch, case, switch, etc.
+
+Of course, being a lazy, functional language, higher level functions like `map` can (and have been) built on top of `if...then...else...`.
+
+throw
+=====
+
+    throw <string>
+
+Throws an error message. This will typically abort evaluation. Though some commands like `nix-env -qa` may silently ignore the error.
+
+
+abort s
+=======
+
+    abort <string>
+
+Prints the error string and aborts evalution. More fatal than throw.
+
 
 assert
 ======
@@ -229,7 +321,9 @@ assert has the syntax:
 
 `e1` must be an expression that evaluates to a Boolean. If it is `true` then `e2` is evaluated. If it is false, then the evaluator aborts and prints a backtrace.
 
+It is essentialy shorthand for
 
+    if e1 then e2 else abort "assertion failed at <line_number>"
 
 comments
 ========

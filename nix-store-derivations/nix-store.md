@@ -114,7 +114,18 @@ The `derivation` automatically serializes the inputs and stores them in the nix 
     nix-repl> let simpleDerivation = derivation { name = "foo" ; builder = "foo.sh"; system = "x86_64-linux"; } ; in simpleDerivation
     «derivation /nix/store/gahaap071chaynabdz6a5incfwsv11pv-foo.drv»
 
-Remember that a derivation only specifies the inputs to a build -- we have not actually built anything yet. Of course, if we did try to build this, it would fail because we have not created `foo.sh` yet. So, let's fix that!
+Remember that a derivation only specifies the inputs to a build -- we have not actually built anything yet. Of course, if we did try to build this, it would fail because we have not created `foo.sh` yet.
 
 
+`nix-repl` has a built-in command `:b` which will attempt to build a derivation. So, let's create a simple builder that will echo "hello!" to the console.
 
+
+    nix-repl> :b derivation { name = "foo"; system = "x86_64-darwin"; builder = (builtins.toFile "foo.sh" ''#!/bin/sh ''\necho hello! ''); }
+    these derivations will be built:
+      /nix/store/dw7v1s1pzvbxhdlwr4776wdyfgb628rf-foo.drv
+    building path(s) ‘/nix/store/6984vrjgq7asfr5mh1p3gbzqvzvsa0nk-foo’
+    while setting up the build environment: executing ‘/nix/store/4i4b3iyp16rkn61nzs8hcmvlyb1wkfnn-foo.sh’: Permission denied
+    builder for ‘/nix/store/dw7v1s1pzvbxhdlwr4776wdyfgb628rf-foo.drv’ failed with exit code 1
+    error: build of ‘/nix/store/dw7v1s1pzvbxhdlwr4776wdyfgb628rf-foo.drv’ failed
+
+:b with import <nixpkgs> {} ; derivation { name = "foo"; system = "x86_64-darwin"; builder = (builtins.toFile "foo.sh" ''#!/bin/sh ''\necho hello! ; ${coreutils}/bin/mkdir -p $out ; echo "hello!" > $out/greeting.txt ''); }

@@ -227,6 +227,13 @@ If we use nix-repl:
 
 We can see that the path is made absolute relative to the directory we were in when we started `nix-repl`.
 
+`NIX_PATH` and `<var>`
+----------------------
+
+
+
+
+
 Integer
 ========
 
